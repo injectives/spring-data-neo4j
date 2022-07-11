@@ -113,6 +113,7 @@ public enum CypherGenerator {
 		List<Expression> expressions = new ArrayList<>();
 		expressions.add(rootNode.getRequiredSymbolicName());
 		expressions.add(Functions.id(rootNode).as(Constants.NAME_OF_INTERNAL_ID));
+		expressions.add(Functions.elementId(rootNode).as(Constants.NAME_OF_ELEMENT_ID));
 
 		return match(rootNode).where(conditionOrNoCondition(condition)).with(expressions.toArray(new Expression[] {}));
 	}
@@ -307,7 +308,7 @@ public enum CypherGenerator {
 				Property versionProperty = rootNode.property(((Neo4jPersistentEntity<?>) nodeDescription).getRequiredVersionProperty().getName());
 
 				createIfNew = updateDecorator.apply(optionalMatch(possibleExistingNode)
-						.where(possibleExistingNode.internalId().isEqualTo(idParameter))
+						.where(Functions.id(possibleExistingNode).isEqualTo(idParameter))
 						.with(possibleExistingNode)
 						.where(possibleExistingNode.isNull())
 						.create(rootNode.withProperties(versionProperty, literalOf(0)))
@@ -317,7 +318,7 @@ public enum CypherGenerator {
 						.build();
 
 				updateIfExists = updateDecorator.apply(match(rootNode)
-						.where(rootNode.internalId().isEqualTo(idParameter))
+						.where(Functions.id(rootNode).isEqualTo(idParameter))
 						.and(versionProperty.isEqualTo(parameter(Constants.NAME_OF_VERSION_PARAM))) // Initial check
 						.set(versionProperty.to(versionProperty.add(literalOf(1)))) // Acquire lock
 						.with(rootNode)
@@ -327,12 +328,12 @@ public enum CypherGenerator {
 						.returning(rootNode).build();
 			} else {
 				createIfNew = updateDecorator
-						.apply(optionalMatch(possibleExistingNode).where(possibleExistingNode.internalId().isEqualTo(idParameter))
+						.apply(optionalMatch(possibleExistingNode).where(Functions.id(possibleExistingNode).isEqualTo(idParameter))
 								.with(possibleExistingNode).where(possibleExistingNode.isNull()).create(rootNode)
 								.set(rootNode, parameter(Constants.NAME_OF_PROPERTIES_PARAM)))
 						.returning(rootNode).build();
 
-				updateIfExists = updateDecorator.apply(match(rootNode).where(rootNode.internalId().isEqualTo(idParameter))
+				updateIfExists = updateDecorator.apply(match(rootNode).where(Functions.id(rootNode).isEqualTo(idParameter))
 						.mutate(rootNode, parameter(Constants.NAME_OF_PROPERTIES_PARAM))).returning(rootNode).build();
 			}
 
@@ -357,7 +358,11 @@ public enum CypherGenerator {
 		return Cypher.unwind(parameter(Constants.NAME_OF_ENTITY_LIST_PARAM)).as(row)
 				.merge(rootNode.withProperties(nameOfIdProperty, Cypher.property(row, Constants.NAME_OF_ID)))
 				.mutate(rootNode, Cypher.property(row, Constants.NAME_OF_PROPERTIES_PARAM))
-				.returning(rootNode.internalId().as(Constants.NAME_OF_INTERNAL_ID), rootNode.property(nameOfIdProperty).as(Constants.NAME_OF_ID))
+				.returning(
+						Functions.id(rootNode).as(Constants.NAME_OF_INTERNAL_ID),
+						Functions.elementId(rootNode).as(Constants.NAME_OF_ELEMENT_ID),
+						rootNode.property(nameOfIdProperty).as(Constants.NAME_OF_ID)
+				)
 				.build();
 	}
 
@@ -379,11 +384,14 @@ public enum CypherGenerator {
 				startNode.relationshipFrom(endNode, type)).named(RELATIONSHIP_NAME);
 
 		return match(startNode)
-				.where(neo4jPersistentEntity.isUsingInternalIds() ? startNode.internalId().isEqualTo(idParameter)
+				.where(neo4jPersistentEntity.isUsingInternalIds() ? Functions.id(startNode).isEqualTo(idParameter)
 						: startNode.property(idPropertyName).isEqualTo(idParameter))
-				.match(endNode).where(endNode.internalId().isEqualTo(parameter(Constants.TO_ID_PARAMETER_NAME)))
+				.match(endNode).where(Functions.id(endNode).isEqualTo(parameter(Constants.TO_ID_PARAMETER_NAME)))
 				.merge(relationshipFragment)
-				.returning(Functions.id(relationshipFragment))
+				.returning(
+						Functions.id(relationshipFragment).as(Constants.NAME_OF_INTERNAL_ID),
+						Functions.elementId(relationshipFragment).as(Constants.NAME_OF_ELEMENT_ID)
+				)
 				.build();
 	}
 
@@ -411,9 +419,9 @@ public enum CypherGenerator {
 				.named(RELATIONSHIP_NAME);
 
 		StatementBuilder.OngoingReadingWithWhere startAndEndNodeMatch = match(startNode)
-				.where(neo4jPersistentEntity.isUsingInternalIds() ? startNode.internalId().isEqualTo(idParameter)
+				.where(neo4jPersistentEntity.isUsingInternalIds() ? Functions.id(startNode).isEqualTo(idParameter)
 						: startNode.property(idPropertyName).isEqualTo(idParameter))
-				.match(endNode).where(endNode.internalId().isEqualTo(parameter(Constants.TO_ID_PARAMETER_NAME)));
+				.match(endNode).where(Functions.id(endNode).isEqualTo(parameter(Constants.TO_ID_PARAMETER_NAME)));
 
 		StatementBuilder.ExposesSet createOrMatch = isNew
 				? startAndEndNodeMatch.create(relationshipFragment)
@@ -421,7 +429,10 @@ public enum CypherGenerator {
 					.where(Functions.id(relationshipFragment).isEqualTo(Cypher.parameter(Constants.NAME_OF_KNOWN_RELATIONSHIP_PARAM)));
 		return createOrMatch
 				.mutate(RELATIONSHIP_NAME, relationshipProperties)
-				.returning(Functions.id(relationshipFragment))
+				.returning(
+						Functions.id(relationshipFragment).as(Constants.NAME_OF_INTERNAL_ID),
+						Functions.elementId(relationshipFragment).as(Constants.NAME_OF_ELEMENT_ID)
+				)
 				.build();
 	}
 
@@ -449,7 +460,7 @@ public enum CypherGenerator {
 
 		Parameter<?> idParameter = parameter(Constants.FROM_ID_PARAMETER_NAME);
 		return match(relationship)
-				.where(neo4jPersistentEntity.isUsingInternalIds() ? startNode.internalId().isEqualTo(idParameter)
+				.where(neo4jPersistentEntity.isUsingInternalIds() ? Functions.id(startNode).isEqualTo(idParameter)
 						: startNode.property(idPropertyName).isEqualTo(idParameter))
 				.and(Functions.id(relationship).in(Cypher.parameter(Constants.NAME_OF_KNOWN_RELATIONSHIPS_PARAM)).not())
 				.delete(relationship.getRequiredSymbolicName())
@@ -613,6 +624,8 @@ public enum CypherGenerator {
 		nodePropertiesProjection.add(Functions.labels(node));
 		nodePropertiesProjection.add(Constants.NAME_OF_INTERNAL_ID);
 		nodePropertiesProjection.add(Functions.id(node));
+		nodePropertiesProjection.add(Constants.NAME_OF_ELEMENT_ID);
+		nodePropertiesProjection.add(Functions.elementId(node));
 		return nodePropertiesProjection;
 	}
 

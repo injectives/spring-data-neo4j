@@ -34,9 +34,9 @@ import org.neo4j.driver.Record;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.TransactionConfig;
 import org.neo4j.driver.Values;
-import org.neo4j.driver.reactive.RxResult;
-import org.neo4j.driver.reactive.RxSession;
-import org.neo4j.driver.reactive.RxTransaction;
+import org.neo4j.driver.reactive.ReactiveResult;
+import org.neo4j.driver.reactive.ReactiveSession;
+import org.neo4j.driver.reactive.ReactiveTransaction;
 import org.neo4j.driver.summary.ResultSummary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -55,7 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.reactive.TransactionalOperator;
 
 /**
- * The goal of this tests is to ensure a sensible coexistence of declarative {@link Transactional @Transactional}
+ * The goal of these tests is to ensure a sensible coexistence of declarative {@link Transactional @Transactional}
  * transaction when the user uses the {@link Neo4jClient} in the same or another database.
  * <p>
  * While it does not integrate against a real database (multi-database is an enterprise feature), it is still an
@@ -185,41 +185,41 @@ class ReactiveTransactionManagerMixedDatabasesTest {
 			when(defaultRecord.size()).thenReturn(1);
 			when(defaultRecord.get(0)).thenReturn(Values.value(0L));
 
-			RxResult boomResult = mock(RxResult.class);
+			ReactiveResult boomResult = mock(ReactiveResult.class);
 			when(boomResult.records()).thenReturn(Mono.just(boomRecord));
 			when(boomResult.consume()).thenReturn(Mono.just(mock(ResultSummary.class)));
 
-			RxResult defaultResult = mock(RxResult.class);
+			ReactiveResult defaultResult = mock(ReactiveResult.class);
 			when(defaultResult.records()).thenReturn(Mono.just(defaultRecord));
 			when(defaultResult.consume()).thenReturn(Mono.just(mock(ResultSummary.class)));
 
-			RxTransaction boomTransaction = mock(RxTransaction.class);
-			when(boomTransaction.run(eq(TEST_QUERY), any(Map.class))).thenReturn(boomResult);
+			ReactiveTransaction boomTransaction = mock(ReactiveTransaction.class);
+			when(boomTransaction.run(eq(TEST_QUERY), any(Map.class))).thenReturn(Mono.just(boomResult));
 			when(boomTransaction.commit()).thenReturn(Mono.empty());
 			when(boomTransaction.rollback()).thenReturn(Mono.empty());
 
-			RxTransaction defaultTransaction = mock(RxTransaction.class);
-			when(defaultTransaction.run(eq(TEST_QUERY), any(Map.class))).thenReturn(defaultResult);
+			ReactiveTransaction defaultTransaction = mock(ReactiveTransaction.class);
+			when(defaultTransaction.run(eq(TEST_QUERY), any(Map.class))).thenReturn(Mono.just(defaultResult));
 			when(defaultTransaction.commit()).thenReturn(Mono.empty());
 			when(defaultTransaction.rollback()).thenReturn(Mono.empty());
 
-			RxSession boomSession = mock(RxSession.class);
-			when(boomSession.run(eq(TEST_QUERY), any(Map.class))).thenReturn(boomResult);
+			ReactiveSession boomSession = mock(ReactiveSession.class);
+			when(boomSession.run(eq(TEST_QUERY), any(Map.class))).thenReturn(Mono.just(boomResult));
 			when(boomSession.beginTransaction()).thenReturn(Mono.just(boomTransaction));
 			when(boomSession.beginTransaction(any(TransactionConfig.class))).thenReturn(Mono.just(boomTransaction));
 			when(boomSession.close()).thenReturn(Mono.empty());
 
-			RxSession defaultSession = mock(RxSession.class);
-			when(defaultSession.run(eq(TEST_QUERY), any(Map.class))).thenReturn(defaultResult);
+			ReactiveSession defaultSession = mock(ReactiveSession.class);
+			when(defaultSession.run(eq(TEST_QUERY), any(Map.class))).thenReturn(Mono.just(defaultResult));
 			when(defaultSession.beginTransaction()).thenReturn(Mono.just(defaultTransaction));
 			when(defaultSession.beginTransaction(any(TransactionConfig.class))).thenReturn(Mono.just(defaultTransaction));
 			when(defaultSession.close()).thenReturn(Mono.empty());
 
 			Driver driver = mock(Driver.class);
-			when(driver.rxSession()).thenReturn(defaultSession);
-			when(driver.rxSession(any(SessionConfig.class))).then(invocation -> {
+			when(driver.reactiveSession()).thenReturn(defaultSession);
+			when(driver.reactiveSession(any(SessionConfig.class))).then(invocation -> {
 				SessionConfig sessionConfig = invocation.getArgument(0);
-				return sessionConfig.database().map(n -> n.equals(DATABASE_NAME) ? boomSession : defaultSession)
+				return sessionConfig.database().filter(n -> n.equals(DATABASE_NAME)).map(n -> boomSession)
 						.orElse(defaultSession);
 			});
 

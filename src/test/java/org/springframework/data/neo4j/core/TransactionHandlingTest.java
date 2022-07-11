@@ -44,8 +44,8 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.Transaction;
 import org.neo4j.driver.TransactionConfig;
-import org.neo4j.driver.reactive.RxSession;
-import org.neo4j.driver.reactive.RxTransaction;
+import org.neo4j.driver.reactive.ReactiveSession;
+import org.neo4j.driver.reactive.ReactiveTransaction;
 import org.neo4j.driver.types.TypeSystem;
 import org.springframework.data.neo4j.core.transaction.Neo4jTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -104,7 +104,7 @@ class TransactionHandlingTest {
 				assertThat(sessionConfig.database()).isPresent().contains("aDatabase");
 
 				verify(session).run(any(String.class));
-				verify(session).lastBookmark();
+				verify(session).lastBookmarks();
 				verify(session).close();
 
 				verifyNoMoreInteractions(driver, session, transaction);
@@ -144,7 +144,7 @@ class TransactionHandlingTest {
 				verify(transaction).commit();
 				verify(transaction).close();
 				verify(session).isOpen();
-				verify(session).lastBookmark();
+				verify(session).lastBookmarks();
 				verify(session).close();
 				verifyNoMoreInteractions(driver, session, transaction);
 			}
@@ -154,23 +154,23 @@ class TransactionHandlingTest {
 	@Nested
 	class ReactiveNeo4jClientTest {
 
-		@Mock private RxSession session;
+		@Mock private ReactiveSession session;
 
-		@Mock private RxTransaction transaction;
+		@Mock private ReactiveTransaction transaction;
 
 		@Test
 		void shouldNotOpenTransactionsWithoutSubscription() {
 			DefaultReactiveNeo4jClient neo4jClient = new DefaultReactiveNeo4jClient(ReactiveNeo4jClient.with(driver));
 			neo4jClient.query("RETURN 1").in("aDatabase").fetch().one();
 
-			verify(driver, never()).rxSession(any(SessionConfig.class));
+			verify(driver, never()).reactiveSession(any(SessionConfig.class));
 			verifyNoMoreInteractions(driver, session);
 		}
 
 		@Test
 		void shouldCloseUnmanagedSessionOnComplete() {
 
-			when(driver.rxSession(any(SessionConfig.class))).thenReturn(session);
+			when(driver.reactiveSession(any(SessionConfig.class))).thenReturn(session);
 			when(session.close()).thenReturn(Mono.empty());
 
 			DefaultReactiveNeo4jClient neo4jClient = new DefaultReactiveNeo4jClient(ReactiveNeo4jClient.with(driver));
@@ -179,8 +179,8 @@ class TransactionHandlingTest {
 
 			StepVerifier.create(sequence).expectNext("1").verifyComplete();
 
-			verify(driver).rxSession(any(SessionConfig.class));
-			verify(session).lastBookmark();
+			verify(driver).reactiveSession(any(SessionConfig.class));
+			verify(session).lastBookmarks();
 			verify(session).close();
 			verifyNoMoreInteractions(driver, session, transaction);
 		}
@@ -188,7 +188,7 @@ class TransactionHandlingTest {
 		@Test
 		void shouldCloseUnmanagedSessionOnError() {
 
-			when(driver.rxSession(any(SessionConfig.class))).thenReturn(session);
+			when(driver.reactiveSession(any(SessionConfig.class))).thenReturn(session);
 			when(session.close()).thenReturn(Mono.empty());
 
 			DefaultReactiveNeo4jClient neo4jClient = new DefaultReactiveNeo4jClient(ReactiveNeo4jClient.with(driver));
@@ -197,8 +197,8 @@ class TransactionHandlingTest {
 
 			StepVerifier.create(sequence).expectError(SomeException.class).verify();
 
-			verify(driver).rxSession(any(SessionConfig.class));
-			verify(session).lastBookmark();
+			verify(driver).reactiveSession(any(SessionConfig.class));
+			verify(session).lastBookmarks();
 			verify(session).close();
 			verifyNoMoreInteractions(driver, session, transaction);
 		}

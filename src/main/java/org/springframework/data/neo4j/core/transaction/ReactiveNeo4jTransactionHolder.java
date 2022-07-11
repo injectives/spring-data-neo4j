@@ -18,10 +18,11 @@ package org.springframework.data.neo4j.core.transaction;
 import reactor.core.publisher.Mono;
 
 import java.util.Collection;
+import java.util.Set;
 
 import org.neo4j.driver.Bookmark;
-import org.neo4j.driver.reactive.RxSession;
-import org.neo4j.driver.reactive.RxTransaction;
+import org.neo4j.driver.reactive.ReactiveSession;
+import org.neo4j.driver.reactive.ReactiveTransaction;
 import org.springframework.data.neo4j.core.DatabaseSelection;
 import org.springframework.data.neo4j.core.UserSelection;
 import org.springframework.lang.Nullable;
@@ -35,39 +36,39 @@ import org.springframework.transaction.support.ResourceHolderSupport;
 final class ReactiveNeo4jTransactionHolder extends ResourceHolderSupport {
 
 	private final Neo4jTransactionContext context;
-	private final RxSession session;
-	private final RxTransaction transaction;
+	private final ReactiveSession session;
+	private final ReactiveTransaction transaction;
 
-	ReactiveNeo4jTransactionHolder(Neo4jTransactionContext context, RxSession session, RxTransaction transaction) {
+	ReactiveNeo4jTransactionHolder(Neo4jTransactionContext context, ReactiveSession session, ReactiveTransaction transaction) {
 
 		this.context = context;
 		this.session = session;
 		this.transaction = transaction;
 	}
 
-	RxSession getSession() {
+	ReactiveSession getSession() {
 		return session;
 	}
 
 	@Nullable
-	RxTransaction getTransaction(DatabaseSelection inDatabase, UserSelection asUser) {
+	ReactiveTransaction getTransaction(DatabaseSelection inDatabase, UserSelection asUser) {
 
 		return this.context.isForDatabaseAndUser(inDatabase, asUser) ? transaction : null;
 	}
 
-	Mono<Bookmark> commit() {
+	Mono<Set<Bookmark>> commit() {
 
-		return Mono.from(transaction.commit()).then(Mono.fromSupplier(session::lastBookmark));
+		return Mono.fromDirect(transaction.commit()).then(Mono.fromSupplier(session::lastBookmarks));
 	}
 
 	Mono<Void> rollback() {
 
-		return Mono.from(transaction.rollback());
+		return Mono.fromDirect(transaction.rollback());
 	}
 
 	Mono<Void> close() {
 
-		return Mono.from(session.close());
+		return Mono.fromDirect(session.close());
 	}
 
 	DatabaseSelection getDatabaseSelection() {

@@ -161,7 +161,7 @@ class IssuesIT extends TestBase {
 
 				transaction.commit();
 			}
-			bookmarkCapture.seedWith(session.lastBookmark());
+			bookmarkCapture.seedWith(session.lastBookmarks());
 		}
 	}
 

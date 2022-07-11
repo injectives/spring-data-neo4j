@@ -20,11 +20,12 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
-import org.neo4j.driver.reactive.RxQueryRunner;
-import org.neo4j.driver.reactive.RxResult;
-import org.neo4j.driver.reactive.RxSession;
+import org.neo4j.driver.reactive.ReactiveQueryRunner;
+import org.neo4j.driver.reactive.ReactiveResult;
+import org.neo4j.driver.reactive.ReactiveSession;
 import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.types.TypeSystem;
+import org.reactivestreams.Publisher;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.converter.ConverterRegistry;
 import org.springframework.core.convert.support.DefaultConversionService;
@@ -85,42 +86,42 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 	}
 
 	@Override
-	public Mono<RxQueryRunner> getQueryRunner(Mono<DatabaseSelection> databaseSelection, Mono<UserSelection> userSelection) {
+	public Mono<ReactiveQueryRunner> getQueryRunner(Mono<DatabaseSelection> databaseSelection, Mono<UserSelection> userSelection) {
 
 		return databaseSelection.zipWith(userSelection)
 				.flatMap(targetDatabaseAndUser ->
-				ReactiveNeo4jTransactionManager.retrieveReactiveTransaction(driver, targetDatabaseAndUser.getT1(), targetDatabaseAndUser.getT2())
-						.map(RxQueryRunner.class::cast)
-						.zipWith(Mono.just(Collections.<Bookmark>emptySet()))
-						.switchIfEmpty(Mono.fromSupplier(() -> {
-							ReentrantReadWriteLock.ReadLock lock = bookmarksLock.readLock();
-							try {
-								lock.lock();
-								Set<Bookmark> lastBookmarks = new HashSet<>(bookmarks);
-								return Tuples.of(driver.rxSession(Neo4jTransactionUtils.sessionConfig(false, lastBookmarks, targetDatabaseAndUser.getT1(), targetDatabaseAndUser.getT2())), lastBookmarks);
-							} finally {
-								lock.unlock();
-							}
-						})))
-				.map(t -> new DelegatingQueryRunner(t.getT1(), t.getT2(), (usedBookmarks, newBookmark) -> {
+						ReactiveNeo4jTransactionManager.retrieveReactiveTransaction(driver, targetDatabaseAndUser.getT1(), targetDatabaseAndUser.getT2())
+								.map(ReactiveQueryRunner.class::cast)
+								.zipWith(Mono.just(Collections.<Bookmark>emptySet()))
+								.switchIfEmpty(Mono.fromSupplier(() -> {
+									ReentrantReadWriteLock.ReadLock lock = bookmarksLock.readLock();
+									try {
+										lock.lock();
+										Set<Bookmark> lastBookmarks = new HashSet<>(bookmarks);
+										return Tuples.of(driver.reactiveSession(Neo4jTransactionUtils.sessionConfig(false, lastBookmarks, targetDatabaseAndUser.getT1(), targetDatabaseAndUser.getT2())), lastBookmarks);
+									} finally {
+										lock.unlock();
+									}
+								})))
+				.map(t -> new DelegatingQueryRunner(t.getT1(), t.getT2(), (usedBookmarks, newBookmarks) -> {
 					ReentrantReadWriteLock.WriteLock lock = bookmarksLock.writeLock();
 					try {
 						lock.lock();
 						bookmarks.removeAll(usedBookmarks);
-						bookmarks.add(newBookmark);
+						bookmarks.addAll(newBookmarks);
 					} finally {
 						lock.unlock();
 					}
 				}));
 	}
 
-	private static class DelegatingQueryRunner implements RxQueryRunner {
+	private static class DelegatingQueryRunner implements ReactiveQueryRunner {
 
-		private final RxQueryRunner delegate;
+		private final ReactiveQueryRunner delegate;
 		private final Collection<Bookmark> usedBookmarks;
-		private final BiConsumer<Collection<Bookmark>, Bookmark> newBookmarkConsumer;
+		private final BiConsumer<Collection<Bookmark>, Collection<Bookmark>> newBookmarkConsumer;
 
-		private DelegatingQueryRunner(RxQueryRunner delegate, Collection<Bookmark> lastBookmarks, BiConsumer<Collection<Bookmark>, Bookmark> newBookmarkConsumer) {
+		private DelegatingQueryRunner(ReactiveQueryRunner delegate, Collection<Bookmark> lastBookmarks, BiConsumer<Collection<Bookmark>, Collection<Bookmark>> newBookmarkConsumer) {
 			this.delegate = delegate;
 			this.usedBookmarks = lastBookmarks;
 			this.newBookmarkConsumer = newBookmarkConsumer;
@@ -130,47 +131,46 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 
 			// We're only going to close sessions we have acquired inside the client, not something that
 			// has been retrieved from the tx manager.
-			if (this.delegate instanceof RxSession) {
-				RxSession session = (RxSession) this.delegate;
+			if (this.delegate instanceof ReactiveSession session) {
 				return Mono.fromDirect(session.close()).then().doOnSuccess(signal ->
-						this.newBookmarkConsumer.accept(usedBookmarks, session.lastBookmark()));
+						this.newBookmarkConsumer.accept(usedBookmarks, session.lastBookmarks()));
 			}
 
 			return Mono.empty();
 		}
 
 		@Override
-		public RxResult run(String query, Value parameters) {
+		public Publisher<ReactiveResult> run(String query, Value parameters) {
 			return delegate.run(query, parameters);
 		}
 
 		@Override
-		public RxResult run(String query, Map<String, Object> parameters) {
+		public Publisher<ReactiveResult> run(String query, Map<String, Object> parameters) {
 			return delegate.run(query, parameters);
 		}
 
 		@Override
-		public RxResult run(String query, Record parameters) {
+		public Publisher<ReactiveResult> run(String query, Record parameters) {
 			return delegate.run(query, parameters);
 		}
 
 		@Override
-		public RxResult run(String query) {
+		public Publisher<ReactiveResult> run(String query) {
 			return delegate.run(query);
 		}
 
 		@Override
-		public RxResult run(Query query) {
+		public Publisher<ReactiveResult> run(Query query) {
 			return delegate.run(query);
 		}
 	}
 
-	<T> Mono<T> doInQueryRunnerForMono(Mono<DatabaseSelection> databaseSelection, Mono<UserSelection> userSelection, Function<RxQueryRunner, Mono<T>> func) {
+	<T> Mono<T> doInQueryRunnerForMono(Mono<DatabaseSelection> databaseSelection, Mono<UserSelection> userSelection, Function<ReactiveQueryRunner, Mono<T>> func) {
 
 		return Mono.usingWhen(getQueryRunner(databaseSelection, userSelection), func, runner -> ((DelegatingQueryRunner) runner).close());
 	}
 
-	<T> Flux<T> doInStatementRunnerForFlux(Mono<DatabaseSelection> databaseSelection, Mono<UserSelection> userSelection, Function<RxQueryRunner, Flux<T>> func) {
+	<T> Flux<T> doInStatementRunnerForFlux(Mono<DatabaseSelection> databaseSelection, Mono<UserSelection> userSelection, Function<ReactiveQueryRunner, Flux<T>> func) {
 
 		return Flux.usingWhen(getQueryRunner(databaseSelection, userSelection), func, runner -> ((DelegatingQueryRunner) runner).close());
 	}
@@ -186,7 +186,7 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 	}
 
 	@Override
-	public <T> OngoingDelegation<T> delegateTo(Function<RxQueryRunner, Mono<T>> callback) {
+	public <T> OngoingDelegation<T> delegateTo(Function<ReactiveQueryRunner, Mono<T>> callback) {
 		return new DefaultRunnableDelegation<>(callback);
 	}
 
@@ -414,9 +414,9 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 			return Mono.fromSupplier(cypherSupplier).zipWith(Mono.just(parameters.get()));
 		}
 
-		Flux<T> executeWith(Tuple2<String, Map<String, Object>> t, RxQueryRunner runner) {
+		Flux<T> executeWith(Tuple2<String, Map<String, Object>> t, ReactiveQueryRunner runner) {
 
-			return Flux.usingWhen(Flux.just(runner.run(t.getT1(), t.getT2())),
+			return Flux.usingWhen(runner.run(t.getT1(), t.getT2()),
 					result -> Flux.from(result.records()).mapNotNull(r -> mappingFunction.apply(typeSystem, r)),
 					result -> Flux.from(result.consume()).doOnNext(ResultSummaries::process));
 		}
@@ -425,8 +425,8 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 		public Mono<T> one() {
 
 			return doInQueryRunnerForMono(databaseSelection, userSelection,
-					(runner) -> prepareStatement().flatMapMany(t -> executeWith(t, runner)).singleOrEmpty())
-							.onErrorMap(RuntimeException.class, DefaultReactiveNeo4jClient.this::potentiallyConvertRuntimeException);
+					(runner) -> prepareStatement().flatMapMany(t -> executeWith(t, runner)).singleOrEmpty()
+					.onErrorMap(RuntimeException.class, DefaultReactiveNeo4jClient.this::potentiallyConvertRuntimeException));
 		}
 
 		@Override
@@ -434,7 +434,7 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 
 			return doInQueryRunnerForMono(databaseSelection, userSelection,
 					runner -> prepareStatement().flatMapMany(t -> executeWith(t, runner)).next())
-							.onErrorMap(RuntimeException.class, DefaultReactiveNeo4jClient.this::potentiallyConvertRuntimeException);
+					.onErrorMap(RuntimeException.class, DefaultReactiveNeo4jClient.this::potentiallyConvertRuntimeException);
 		}
 
 		@Override
@@ -447,10 +447,10 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 
 		Mono<ResultSummary> run() {
 
-			return doInQueryRunnerForMono(databaseSelection, userSelection, runner -> prepareStatement().flatMap(t -> {
-				RxResult rxResult = runner.run(t.getT1(), t.getT2());
-				return Flux.from(rxResult.records()).then(Mono.from(rxResult.consume()).map(ResultSummaries::process));
-			})).onErrorMap(RuntimeException.class, DefaultReactiveNeo4jClient.this::potentiallyConvertRuntimeException);
+			return doInQueryRunnerForMono(databaseSelection, userSelection, runner -> prepareStatement()
+					.flatMap(t -> Mono.from(runner.run(t.getT1(), t.getT2())))
+					.flatMap(rxResult -> Mono.fromDirect(rxResult.consume()).map(ResultSummaries::process)))
+					.onErrorMap(RuntimeException.class, DefaultReactiveNeo4jClient.this::potentiallyConvertRuntimeException);
 		}
 	}
 
@@ -468,12 +468,12 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 
 	class DefaultRunnableDelegation<T> implements RunnableDelegation<T>, OngoingDelegation<T> {
 
-		private final Function<RxQueryRunner, Mono<T>> callback;
+		private final Function<ReactiveQueryRunner, Mono<T>> callback;
 
 		private Mono<DatabaseSelection> databaseSelection;
-		private Mono<UserSelection> userSelection;
+		private final Mono<UserSelection> userSelection;
 
-		DefaultRunnableDelegation(Function<RxQueryRunner, Mono<T>> callback) {
+		DefaultRunnableDelegation(Function<ReactiveQueryRunner, Mono<T>> callback) {
 			this.callback = callback;
 			this.databaseSelection = resolveTargetDatabaseName(null);
 			this.userSelection = resolveUser(null);

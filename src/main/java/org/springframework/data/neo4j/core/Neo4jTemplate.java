@@ -72,6 +72,7 @@ import org.springframework.data.neo4j.core.mapping.CypherGenerator;
 import org.springframework.data.neo4j.core.mapping.DtoInstantiatingConverter;
 import org.springframework.data.neo4j.core.mapping.EntityFromDtoInstantiatingConverter;
 import org.springframework.data.neo4j.core.mapping.EntityInstanceWithSource;
+import org.springframework.data.neo4j.core.mapping.IdentitySupport;
 import org.springframework.data.neo4j.core.mapping.MappingSupport;
 import org.springframework.data.neo4j.core.mapping.Neo4jMappingContext;
 import org.springframework.data.neo4j.core.mapping.Neo4jPersistentEntity;
@@ -389,7 +390,7 @@ public final class Neo4jTemplate implements
 			throw new IllegalStateException("Could not retrieve an internal id while saving");
 		}
 
-		Long internalId = newOrUpdatedNode.get().id();
+		Long internalId = newOrUpdatedNode.map(IdentitySupport::getInternalId).get();
 
 		PersistentPropertyAccessor<T> propertyAccessor = entityMetaData.getPropertyAccessor(entityToBeSaved);
 		if (entityMetaData.isUsingInternalIds()) {
@@ -790,7 +791,7 @@ public final class Neo4jTemplate implements
 					relatedInternalId = stateMachine.getInternalId(relatedValueToStore);
 				} else {
 					savedEntity = saveRelatedNode(newRelatedObject, targetEntity, includeProperty, currentPropertyPath);
-					relatedInternalId = savedEntity.id();
+					relatedInternalId = IdentitySupport.getInternalId(savedEntity);
 					stateMachine.markValueAsProcessed(relatedValueToStore, relatedInternalId);
 					if (relatedValueToStore instanceof MappingSupport.RelationshipPropertiesWithEntityHolder) {
 						Object entity = ((MappingSupport.RelationshipPropertiesWithEntityHolder) relatedValueToStore).getRelatedEntity();
@@ -834,7 +835,9 @@ public final class Neo4jTemplate implements
 						.bind(idValue) //
 							.to(Constants.NAME_OF_KNOWN_RELATIONSHIP_PARAM) //
 						.bindAll(statementHolder.getProperties())
-						.fetchAs(Long.class).one();
+						.fetchAs(Long.class)
+						.mappedBy(IdentitySupport::getInternalId)
+						.one();
 
 				if (idProperty != null && isNewRelationship) {
 					relationshipContext
