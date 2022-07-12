@@ -37,7 +37,7 @@ import org.springframework.lang.Nullable;
  * @soundtrack Buckethead - SIGIL Soundtrack
  * @since 7.0
  */
-@API(status=INTERNAL)
+@API(status = INTERNAL)
 public final class IdentitySupport {
 
 	private IdentitySupport() {
