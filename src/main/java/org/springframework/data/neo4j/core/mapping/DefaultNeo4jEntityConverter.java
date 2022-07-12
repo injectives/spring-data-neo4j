@@ -146,7 +146,7 @@ final class DefaultNeo4jEntityConverter implements Neo4jEntityConverter {
 				Node node = value.asNode();
 				if (primaryLabels.stream().anyMatch(node::hasLabel)) { // it has a matching label
 					// We haven't seen this node yet, so we take it
-					if (!knownObjects.containsCounterpartOf(node)) {
+					if (!knownObjects.containsNode(node)) {
 						matchingNodes.add(node);
 					} else {
 						seenMatchingNodes.add(node);
@@ -800,7 +800,7 @@ final class DefaultNeo4jEntityConverter implements Neo4jEntityConverter {
 			}
 		}
 
-		private boolean containsCounterpartOf(Node node) {
+		private boolean containsNode(Node node) {
 
 			try {
 				read.lock();

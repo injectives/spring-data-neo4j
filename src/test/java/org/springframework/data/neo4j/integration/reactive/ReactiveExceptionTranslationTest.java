@@ -54,7 +54,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  * be run the SDN Jar and only that, our migration scripts won't be included in that Jar, and migrations can't be found.
  * This is likely due to the parent build and it's not worth investigating much here unless we decide to have more tests
  * based on migrations.
- * ReactiveRepositoryIT
  * @author Michael J. Simons
  */
 @Neo4jIntegrationTest

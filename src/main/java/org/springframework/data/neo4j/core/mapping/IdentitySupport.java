@@ -15,6 +15,9 @@
  */
 package org.springframework.data.neo4j.core.mapping;
 
+import static org.apiguardian.api.API.Status.INTERNAL;
+
+import org.apiguardian.api.API;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.types.Entity;
 import org.neo4j.driver.types.MapAccessor;
@@ -34,6 +37,7 @@ import org.springframework.lang.Nullable;
  * @soundtrack Buckethead - SIGIL Soundtrack
  * @since 7.0
  */
+@API(status=INTERNAL)
 public final class IdentitySupport {
 
 	private IdentitySupport() {

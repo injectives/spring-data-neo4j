@@ -106,6 +106,7 @@
 		<mockito>${mockito.version}</mockito>
 		<mockito.version>4.4.0</mockito.version>
 		<neo4j-java-driver.version>5.0.0-alpha03</neo4j-java-driver.version>
+		<neo4j-migrations.version>1.8.1</neo4j-migrations.version>
 		<neo4j.version>4.4.8</neo4j.version>
 		<objenesis.version>3.0.1</objenesis.version>
 		<project.build.docs>${project.build.directory}/docs</project.build.docs>
@@ -269,7 +270,7 @@
 		<dependency>
 			<groupId>eu.michael-simons.neo4j</groupId>
 			<artifactId>neo4j-migrations</artifactId>
-			<version>1.8.1</version>
+			<version>${neo4j-migrations.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
