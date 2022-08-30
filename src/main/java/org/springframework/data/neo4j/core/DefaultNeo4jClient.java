@@ -124,13 +124,12 @@ final class DefaultNeo4jClient implements Neo4jClient {
 		}
 
 		@Override
-		public void close() throws Exception {
+		public void close() {
 
 			// We're only going to close sessions we have acquired inside the client, not something that
 			// has been retrieved from the tx manager.
-			if (this.delegate instanceof Session) {
+			if (this.delegate instanceof Session session) {
 
-				Session session = (Session) this.delegate;
 				session.close();
 				this.newBookmarkConsumer.accept(usedBookmarks, session.lastBookmarks());
 			}

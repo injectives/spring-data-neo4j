@@ -15,6 +15,7 @@
  */
 package org.springframework.data.neo4j.core.transaction;
 
+import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Mono;
 
 import java.util.Collection;
@@ -57,18 +58,15 @@ final class ReactiveNeo4jTransactionHolder extends ResourceHolderSupport {
 	}
 
 	Mono<Set<Bookmark>> commit() {
-
-		return Mono.fromDirect(transaction.commit()).then(Mono.fromSupplier(session::lastBookmarks));
+		return JdkFlowAdapter.flowPublisherToFlux(transaction.commit()).then(Mono.fromSupplier(session::lastBookmarks));
 	}
 
 	Mono<Void> rollback() {
-
-		return Mono.fromDirect(transaction.rollback());
+		return JdkFlowAdapter.flowPublisherToFlux(transaction.rollback()).then();
 	}
 
 	Mono<Void> close() {
-
-		return Mono.fromDirect(session.close());
+		return JdkFlowAdapter.flowPublisherToFlux(session.close()).then();
 	}
 
 	DatabaseSelection getDatabaseSelection() {

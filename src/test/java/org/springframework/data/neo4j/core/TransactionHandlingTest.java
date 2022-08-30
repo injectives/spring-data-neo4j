@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -171,7 +172,7 @@ class TransactionHandlingTest {
 		void shouldCloseUnmanagedSessionOnComplete() {
 
 			when(driver.reactiveSession(any(SessionConfig.class))).thenReturn(session);
-			when(session.close()).thenReturn(Mono.empty());
+			when(session.close()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.empty()));
 
 			DefaultReactiveNeo4jClient neo4jClient = new DefaultReactiveNeo4jClient(ReactiveNeo4jClient.with(driver));
 
@@ -189,7 +190,7 @@ class TransactionHandlingTest {
 		void shouldCloseUnmanagedSessionOnError() {
 
 			when(driver.reactiveSession(any(SessionConfig.class))).thenReturn(session);
-			when(session.close()).thenReturn(Mono.empty());
+			when(session.close()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.empty()));
 
 			DefaultReactiveNeo4jClient neo4jClient = new DefaultReactiveNeo4jClient(ReactiveNeo4jClient.with(driver));
 

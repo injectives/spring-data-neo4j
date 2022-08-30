@@ -15,6 +15,7 @@
  */
 package org.springframework.data.neo4j.core.transaction;
 
+import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuples;
 
@@ -214,7 +215,7 @@ public final class ReactiveNeo4jTransactionManager extends AbstractReactiveTrans
 					// Otherwise open up a new native transaction
 					return Mono.defer(() -> {
 						ReactiveSession session = driver.reactiveSession(Neo4jTransactionUtils.defaultSessionConfig(targetDatabase, asUser));
-						return Mono.from(session.beginTransaction(TransactionConfig.empty())).map(tx -> {
+						return JdkFlowAdapter.flowPublisherToFlux(session.beginTransaction(TransactionConfig.empty())).single().map(tx -> {
 
 							ReactiveNeo4jTransactionHolder newConnectionHolder = new ReactiveNeo4jTransactionHolder(
 									new Neo4jTransactionContext(targetDatabase, asUser), session, tx);
@@ -293,7 +294,7 @@ public final class ReactiveNeo4jTransactionManager extends AbstractReactiveTrans
 									.switchIfEmpty(Mono.just(UserSelection.connectedUser())),
 							(databaseSelection, userSelection) -> new Neo4jTransactionContext(databaseSelection, userSelection, bookmarkManager.getBookmarks()))
 					.map(context -> Tuples.of(context, this.driver.reactiveSession(Neo4jTransactionUtils.sessionConfig(readOnly, context.getBookmarks(), context.getDatabaseSelection(), context.getUserSelection()))))
-					.flatMap(contextAndSession -> Mono.from(contextAndSession.getT2().beginTransaction(transactionConfig))
+					.flatMap(contextAndSession -> JdkFlowAdapter.flowPublisherToFlux(contextAndSession.getT2().beginTransaction(transactionConfig)).single()
 							.map(nativeTransaction -> new ReactiveNeo4jTransactionHolder(contextAndSession.getT1(),
 									contextAndSession.getT2(), nativeTransaction)))
 					.doOnNext(transactionHolder -> {

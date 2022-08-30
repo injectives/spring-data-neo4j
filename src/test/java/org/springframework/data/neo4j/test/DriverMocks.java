@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Mono;
 
 import org.neo4j.driver.Driver;
@@ -61,7 +62,7 @@ public final class DriverMocks {
 		ReactiveTransaction transaction = mock(ReactiveTransaction.class);
 
 		ReactiveSession session = mock(ReactiveSession.class);
-		when(session.beginTransaction(any(TransactionConfig.class))).thenReturn(Mono.just(transaction));
+		when(session.beginTransaction(any(TransactionConfig.class))).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(transaction)));
 
 		Driver driver = mock(Driver.class);
 		when(driver.reactiveSession(any(SessionConfig.class))).thenReturn(session);

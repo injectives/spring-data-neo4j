@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import io.r2dbc.h2.H2ConnectionConfiguration;
 import io.r2dbc.h2.H2ConnectionFactory;
+import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -69,10 +70,10 @@ class ReactiveNeo4jTransactionManagerTest {
 	void setUp() {
 
 		when(driver.reactiveSession(any(SessionConfig.class))).thenReturn(session);
-		when(session.beginTransaction(any(TransactionConfig.class))).thenReturn(Mono.just(transaction));
-		when(transaction.rollback()).thenReturn(Mono.empty());
-		when(transaction.commit()).thenReturn(Mono.empty());
-		when(session.close()).thenReturn(Mono.empty());
+		when(session.beginTransaction(any(TransactionConfig.class))).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(transaction)));
+		when(transaction.rollback()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.empty()));
+		when(transaction.commit()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.empty()));
+		when(session.close()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.empty()));
 	}
 
 	@Test

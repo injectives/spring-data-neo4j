@@ -30,6 +30,7 @@ import org.reactivestreams.Publisher;
 import org.springframework.data.neo4j.core.mapping.IdentitySupport;
 import org.springframework.data.neo4j.test.Neo4jReactiveTestConfiguration;
 
+import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -171,8 +172,8 @@ class ReactiveNeo4jClientIT {
 		 * @return a publisher of records
 		 */
 		public Publisher<Record> fetchWith(ReactiveQueryRunner reactiveQueryRunner) {
-			return Mono.fromCallable(this::createQuery).flatMap(q -> Mono.from(reactiveQueryRunner.run(q)))
-					.flatMapMany(ReactiveResult::records);
+			return Mono.fromCallable(this::createQuery).flatMapMany(q -> JdkFlowAdapter.flowPublisherToFlux(reactiveQueryRunner.run(q)))
+					.flatMap(rs -> JdkFlowAdapter.flowPublisherToFlux(rs.records()));
 		}
 
 		@Override

@@ -22,6 +22,8 @@ import org.neo4j.driver.TransactionContext;
 import org.neo4j.driver.reactive.ReactiveResult;
 import org.neo4j.driver.reactive.ReactiveSession;
 import org.springframework.data.neo4j.test.Neo4jReactiveTestConfiguration;
+
+import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -438,7 +440,7 @@ public class ReactiveDynamicLabelsIT {
 					.and(n.property("moreLabels").isNull()).unwind(n.labels()).as("label").returning("label").build());
 			return Flux
 					.usingWhen(Mono.fromSupplier(() -> driver.reactiveSession(bookmarkCapture.createSessionConfig())),
-							s -> Flux.from(s.run(cypher, Collections.singletonMap("id", id))).flatMap(ReactiveResult::records), ReactiveSession::close)
+							s -> JdkFlowAdapter.flowPublisherToFlux(s.run(cypher, Collections.singletonMap("id", id))).flatMap(r -> JdkFlowAdapter.flowPublisherToFlux(r.records())), rs -> JdkFlowAdapter.flowPublisherToFlux(rs.close()))
 					.map(r -> r.get("label").asString());
 		}
 

@@ -25,7 +25,6 @@ import org.neo4j.driver.reactive.ReactiveResult;
 import org.neo4j.driver.reactive.ReactiveSession;
 import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.types.TypeSystem;
-import org.reactivestreams.Publisher;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.converter.ConverterRegistry;
 import org.springframework.core.convert.support.DefaultConversionService;
@@ -37,6 +36,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -47,6 +47,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -132,7 +133,7 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 			// We're only going to close sessions we have acquired inside the client, not something that
 			// has been retrieved from the tx manager.
 			if (this.delegate instanceof ReactiveSession session) {
-				return Mono.fromDirect(session.close()).then().doOnSuccess(signal ->
+				return JdkFlowAdapter.flowPublisherToFlux(session.close()).then().doOnSuccess(signal ->
 						this.newBookmarkConsumer.accept(usedBookmarks, session.lastBookmarks()));
 			}
 
@@ -416,9 +417,9 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 
 		Flux<T> executeWith(Tuple2<String, Map<String, Object>> t, ReactiveQueryRunner runner) {
 
-			return Flux.usingWhen(runner.run(t.getT1(), t.getT2()),
-					result -> Flux.from(result.records()).mapNotNull(r -> mappingFunction.apply(typeSystem, r)),
-					result -> Flux.from(result.consume()).doOnNext(ResultSummaries::process));
+			return Flux.usingWhen(JdkFlowAdapter.flowPublisherToFlux(runner.run(t.getT1(), t.getT2())),
+					result -> JdkFlowAdapter.flowPublisherToFlux(result.records()).mapNotNull(r -> mappingFunction.apply(typeSystem, r)),
+					result -> JdkFlowAdapter.flowPublisherToFlux(result.consume()).doOnNext(ResultSummaries::process));
 		}
 
 		@Override
@@ -448,8 +449,8 @@ final class DefaultReactiveNeo4jClient implements ReactiveNeo4jClient {
 		Mono<ResultSummary> run() {
 
 			return doInQueryRunnerForMono(databaseSelection, userSelection, runner -> prepareStatement()
-					.flatMap(t -> Mono.from(runner.run(t.getT1(), t.getT2())))
-					.flatMap(rxResult -> Mono.fromDirect(rxResult.consume()).map(ResultSummaries::process)))
+					.flatMap(t -> JdkFlowAdapter.flowPublisherToFlux(runner.run(t.getT1(), t.getT2())).single())
+					.flatMap(rxResult -> JdkFlowAdapter.flowPublisherToFlux(rxResult.consume()).single().map(ResultSummaries::process)))
 					.onErrorMap(RuntimeException.class, DefaultReactiveNeo4jClient.this::potentiallyConvertRuntimeException);
 		}
 	}
