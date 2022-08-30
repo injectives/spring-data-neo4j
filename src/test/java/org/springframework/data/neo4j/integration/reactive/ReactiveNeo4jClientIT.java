@@ -24,7 +24,6 @@ import org.neo4j.driver.QueryRunner;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.async.AsyncQueryRunner;
 import org.neo4j.driver.reactive.ReactiveQueryRunner;
-import org.neo4j.driver.reactive.ReactiveResult;
 import org.neo4j.driver.summary.ResultSummary;
 import org.reactivestreams.Publisher;
 import org.springframework.data.neo4j.core.mapping.IdentitySupport;

@@ -37,10 +37,10 @@ import org.neo4j.driver.types.TypeSystem;
 import org.springframework.data.neo4j.core.transaction.Neo4jTransactionUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
-
 import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
 import java.lang.reflect.Method;
@@ -108,7 +108,7 @@ class ReactiveNeo4jClientTest {
 		prepareMocks();
 
 		when(session.run(anyString(), anyMap())).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(result)));
-		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2)));
+		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2).publishOn(Schedulers.single())));
 		when(result.consume()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(resultSummary)));
 
 		ReactiveNeo4jClient client = ReactiveNeo4jClient.create(driver);
@@ -147,7 +147,7 @@ class ReactiveNeo4jClientTest {
 		prepareMocks();
 
 		when(session.run(anyString(), anyMap())).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(result)));
-		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2)));
+		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2).publishOn(Schedulers.single())));
 		when(result.consume()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(resultSummary)));
 
 		ReactiveNeo4jClient client = ReactiveNeo4jClient.create(driver);
@@ -186,7 +186,7 @@ class ReactiveNeo4jClientTest {
 		prepareMocks();
 
 		when(session.run(anyString(), anyMap())).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(result)));
-		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2)));
+		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2).publishOn(Schedulers.single())));
 		when(result.consume()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(resultSummary)));
 
 		ReactiveNeo4jClient client = ReactiveNeo4jClient.create(driver);
@@ -267,7 +267,7 @@ class ReactiveNeo4jClientTest {
 		prepareMocks();
 
 		when(session.run(anyString(), anyMap())).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(result)));
-		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2)));
+		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2).publishOn(Schedulers.single())));
 		when(result.consume()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(resultSummary)));
 
 		ReactiveNeo4jClient client = ReactiveNeo4jClient.create(driver);
@@ -319,7 +319,7 @@ class ReactiveNeo4jClientTest {
 		prepareMocks();
 
 		when(session.run(anyString(), anyMap())).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(result)));
-		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2)));
+		when(result.records()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Flux.just(record1, record2).publishOn(Schedulers.single())));
 		when(result.consume()).thenReturn(JdkFlowAdapter.publisherToFlowPublisher(Mono.just(resultSummary)));
 
 		String databaseName = "customDatabaseSelection";
