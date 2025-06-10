@@ -97,7 +97,7 @@
 		<maven-install-plugin.version>3.1.4</maven-install-plugin.version>
 		<maven-site-plugin.version>3.7.1</maven-site-plugin.version>
 		<maven.compiler.release>${java.version}</maven.compiler.release>
-		<neo4j-java-driver.version>5.28.5</neo4j-java-driver.version>
+		<neo4j-java-driver.version>6.0-SNAPSHOT</neo4j-java-driver.version>
 		<neo4j-migrations.version>2.17.3</neo4j-migrations.version>
 		<neo4j.version>4.4.41</neo4j.version>
 		<objenesis.version>3.0.1</objenesis.version>
@@ -229,6 +229,12 @@
 				<version>${junit-cc-testcontainer}</version>
 				<scope>test</scope>
 			</dependency>
+			<dependency>
+				<groupId>org.neo4j.bolt</groupId>
+				<artifactId>neo4j-bolt-connection-query-api</artifactId>
+				<version>4.0-SNAPSHOT</version>
+				<scope>test</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -290,6 +296,10 @@
 		<dependency>
 			<groupId>org.neo4j</groupId>
 			<artifactId>neo4j-cypher-dsl-schema-name-support</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.neo4j.bolt</groupId>
+			<artifactId>neo4j-bolt-connection-query-api</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.neo4j.driver</groupId>

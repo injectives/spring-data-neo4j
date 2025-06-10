@@ -15,11 +15,13 @@
  */
 package org.springframework.data.neo4j.core;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.neo4j.driver.NotificationSeverity;
 import org.neo4j.driver.summary.InputPosition;
 import org.neo4j.driver.summary.Notification;
 
@@ -69,7 +71,7 @@ class ResultSummariesTests {
 		}
 
 		Notification notification = mock(Notification.class);
-		given(notification.severity()).willReturn("WARNING");
+		given(notification.severityLevel()).willReturn(Optional.of(NotificationSeverity.WARNING));
 		given(notification.code()).willReturn("KGQ.Warning");
 		given(notification.title()).willReturn("Das ist keine gute Query.");
 		given(notification.description()).willReturn("Das solltest Du besser nicht mehr machen.");
